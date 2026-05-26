@@ -1,0 +1,770 @@
+{% extends "core/base.html" %}
+
+{% block title %}{{ caso.nome }} — EDIFRAUDS/PCDF{% endblock %}
+
+{% block content %}
+<!-- ── Cabeçalho do caso ── -->
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ caso.nome }}</h1>
+        <p class="page-subtitle">
+            {% if caso.numero_processo %}Processo {{ caso.numero_processo }} &nbsp;·&nbsp; {% endif %}
+            Analista: {{ caso.analista.get_full_name|default:caso.analista.matricula }}
+        </p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-start;">
+        <a class="btn btn-ghost btn-sm" href="{% url 'abrir_pasta' caso.pk %}">📂 Abrir Pasta</a>
+        <a class="btn btn-ghost btn-sm" href="{% url 'casos' %}">← Casos</a>
+    </div>
+</div>
+
+<!-- ── Grid de ações ── -->
+<div class="grid-2">
+
+    <!-- Coluna 1 -->
+    <div>
+        <!-- Preservar Site -->
+        <div class="card">
+            <p class="card-title">🌐 Preservar Site</p>
+            <form method="post" action="{% url 'capturar_site' caso.pk %}">
+                {% csrf_token %}
+                {{ capture_form.non_field_errors }}
+                <label for="{{ capture_form.url.id_for_label }}">{{ capture_form.url.label }}</label>
+                {{ capture_form.url }}
+                {% if capture_form.url.errors %}
+                <ul class="errorlist">{% for e in capture_form.url.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                {% endif %}
+                <button type="submit">Capturar Site</button>
+            </form>
+        </div>
+
+        <!-- Cópia Forense -->
+        <div class="card space-top">
+            <p class="card-title">🗂️ Cópia Forense de Arquivos</p>
+            <p class="muted" style="margin-bottom:10px;">
+                Cada arquivo é copiado para <code>copias_forenses/</code> com hash SHA-256,
+                metadados EXIF (imagens) e pacote ZIP assinado.
+            </p>
+            <form method="post" action="{% url 'copia_forense' caso.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <label for="arquivos">Selecionar Arquivos</label>
+                <input type="file" id="arquivos" name="arquivos" multiple>
+                <button type="submit">Iniciar Cópia Forense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Coluna 2 -->
+    <div>
+        <!-- Gravação de Tela -->
+        <div class="card">
+            <p class="card-title">🎬 Gravação de Tela com Áudio</p>
+            <p class="muted" style="margin-bottom:12px;">
+                Selecione a tela/janela no navegador. O áudio do sistema depende do suporte do navegador e do SO.
+            </p>
+
+            <label for="microphoneSelect">Microfone</label>
+            <select id="microphoneSelect">
+                <option value="">Carregando dispositivos...</option>
+            </select>
+
+            <label class="inline-control" style="text-transform:none;letter-spacing:0;font-weight:400;">
+                <input type="checkbox" id="systemAudioRequested" checked>
+                Solicitar áudio do sistema ao compartilhar tela
+            </label>
+
+            <div class="recording-actions">
+                <button type="button" id="startRecordingButton" class="btn btn-primary">▶ Iniciar Gravação</button>
+                <button type="button" id="stopRecordingButton" class="btn btn-danger" disabled>■ Parar</button>
+            </div>
+            <p id="recordingStatus" class="status-text">Pronto para iniciar.</p>
+        </div>
+
+        <!-- Capturas de Tela -->
+        <div class="card space-top">
+            <p class="card-title">📸 Capturas de Tela</p>
+            <p class="muted" style="margin-bottom:12px;">
+                Use o botão ou o atalho <code>Ctrl+Shift+S</code>. Durante gravação ativa, a captura fica vinculada ao vídeo.
+            </p>
+
+            <label for="periodicScreenshotInterval">Captura Periódica</label>
+            <select id="periodicScreenshotInterval">
+                <option value="0">Desativada</option>
+                <option value="5">A cada 5 segundos</option>
+                <option value="10">A cada 10 segundos</option>
+                <option value="30">A cada 30 segundos</option>
+            </select>
+
+            <div class="recording-actions">
+                <button type="button" id="manualScreenshotButton" class="btn btn-primary">📸 Capturar Agora</button>
+                <button type="button" id="stopPeriodicButton" class="btn btn-ghost" disabled>✕ Encerrar Periódica</button>
+            </div>
+            <p id="screenshotStatus" class="status-text">Capturas prontas.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Relatório de Integridade + Certidão (largura total) ── -->
+<div class="card space-top">
+    <p class="card-title">🔒 Encerramento do Caso</p>
+    <p class="muted" style="margin-bottom:14px;">
+        Gera o relatório de integridade final (cadeia blockchain-like) e, automaticamente, a
+        <strong style="color:var(--white);">Certidão de Coleta (.docx)</strong> com todas as
+        evidências e assinatura do analista. Salvo na raiz da pasta do caso.
+    </p>
+    <div class="case-close-actions">
+        <form method="post" action="{% url 'relatorio_integridade' caso.pk %}">
+            {% csrf_token %}
+            <button type="submit">🔒 Gerar Relatório de Integridade + Certidão</button>
+        </form>
+        <form method="post" action="{% url 'gerar_certidao' caso.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary" style="margin-top:0;">📄 Só Certidão (.docx)</button>
+        </form>
+    </div>
+</div>
+
+<!-- ── Evidências ── -->
+<div class="space-top">
+    <h2 style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:16px;letter-spacing:.3px;">
+        Evidências Coletadas
+    </h2>
+
+    <!-- Sites -->
+    <div style="margin-bottom:16px;">
+        <p style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+            🌐 Sites Preservados
+        </p>
+        {% if evidencias_site %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>URL</th><th>Hash SHA-256</th><th>Coletado em</th></tr></thead>
+                <tbody>
+                    {% for e in evidencias_site %}
+                    <tr>
+                        <td>{{ e.metadados_json.url|default:"—" }}</td>
+                        <td><code>{{ e.hash_sha256 }}</code></td>
+                        <td>{{ e.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card"><p class="muted">Nenhum site preservado neste caso.</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Vídeos -->
+    <div style="margin-bottom:16px;">
+        <p style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+            🎬 Gravações de Tela
+        </p>
+        {% if evidencias_video %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Arquivo</th><th>Hash SHA-256</th><th>Gravado em</th></tr></thead>
+                <tbody>
+                    {% for e in evidencias_video %}
+                    <tr>
+                        <td>{{ e.path_arquivo }}</td>
+                        <td><code>{{ e.hash_sha256 }}</code></td>
+                        <td>{{ e.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card"><p class="muted">Nenhuma gravação de tela neste caso.</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Screenshots -->
+    <div style="margin-bottom:16px;">
+        <p style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+            📸 Capturas de Tela
+        </p>
+        {% if evidencias_screenshot %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Arquivo</th><th>Hash SHA-256</th><th>Vínculo</th><th>Capturado em</th></tr></thead>
+                <tbody>
+                    {% for e in evidencias_screenshot %}
+                    <tr>
+                        <td>{{ e.path_arquivo }}</td>
+                        <td><code>{{ e.hash_sha256 }}</code></td>
+                        <td>{{ e.metadados_json.linked_recording_id|default:"Relatório individual" }}</td>
+                        <td>{{ e.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card"><p class="muted">Nenhuma captura de tela neste caso.</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Cópias Forenses -->
+    <div style="margin-bottom:16px;">
+        <p style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+            🗂️ Cópias Forenses
+        </p>
+        {% if evidencias_forense %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Arquivo Original</th><th>Hash SHA-256</th><th>Tamanho</th><th>EXIF</th><th>Copiado em</th></tr></thead>
+                <tbody>
+                    {% for e in evidencias_forense %}
+                    <tr>
+                        <td>{{ e.metadados_json.original_name|default:"—" }}</td>
+                        <td><code>{{ e.hash_sha256 }}</code></td>
+                        <td>{{ e.metadados_json.size_bytes|default:"—" }} bytes</td>
+                        <td>{% if e.metadados_json.exif %}<span style="color:var(--success);">✓</span>{% else %}—{% endif %}</td>
+                        <td>{{ e.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card"><p class="muted">Nenhuma cópia forense neste caso.</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Relatórios Gerados -->
+    {% if relatorios_pdf %}
+    <div>
+        <p style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+            📄 Relatórios Gerados
+        </p>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Tipo</th><th>Arquivo</th><th>Gerado em</th><th></th></tr></thead>
+                <tbody>
+                    {% for rel in relatorios_pdf %}
+                    <tr>
+                        <td>{{ rel.tipo }}</td>
+                        <td>{{ rel.nome_arquivo }}</td>
+                        <td>{{ rel.created_at|date:"d/m/Y H:i" }}</td>
+                        <td><a class="btn btn-ghost btn-sm" href="{% url 'relatorio_download' caso.pk rel.pk %}">Download</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Janela Flutuante de Atalhos Rápidos ── -->
+<style>
+    .case-close-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .case-close-actions form {
+        display: flex;
+        margin: 0;
+    }
+    .case-close-actions button {
+        margin-top: 0;
+    }
+
+    #floatToggle {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 48px;
+        height: 48px;
+        background: var(--gold);
+        color: #111;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 900;
+        box-shadow: 0 4px 20px rgba(0,0,0,.6);
+        transition: transform .15s, background .15s;
+        user-select: none;
+        border: none;
+        font-family: inherit;
+    }
+    #floatToggle:hover { transform: scale(1.1); background: var(--gold-lt); }
+    #floatToggle.rec-active { background: var(--danger); color: #fff; }
+
+    #floatPanel {
+        position: fixed;
+        bottom: 80px;
+        right: 24px;
+        width: 224px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.7);
+        z-index: 900;
+        overflow: hidden;
+    }
+    .float-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface3);
+        border-bottom: 1px solid var(--border);
+        padding: 9px 12px;
+        cursor: grab;
+        user-select: none;
+    }
+    .float-header:active { cursor: grabbing; }
+    .float-title { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: .4px; text-transform: uppercase; }
+    .float-close {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 2px;
+        min-height: auto;
+        margin-top: 0;
+        transition: color .15s;
+        font-family: inherit;
+    }
+    .float-close:hover { color: var(--danger); }
+    .float-body { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+    .float-status {
+        font-size: 11px;
+        color: var(--muted);
+        padding: 5px 8px;
+        background: var(--surface);
+        border-radius: 4px;
+        border-left: 2px solid var(--border);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .float-status.rec { color: var(--danger); border-left-color: var(--danger); }
+    .float-btn {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        background: var(--surface3);
+        color: var(--white);
+        transition: border-color .15s, color .15s, background .15s;
+        min-height: 32px;
+        line-height: 1;
+        margin-top: 0;
+        width: 100%;
+        text-align: left;
+    }
+    .float-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .float-btn:disabled { opacity: .38; cursor: not-allowed; }
+    .float-btn-start { border-color: var(--success); color: var(--success); background: rgba(75,174,80,.06); }
+    .float-btn-start:hover:not(:disabled) { background: rgba(75,174,80,.14); border-color: var(--success); color: var(--success); }
+    .float-btn-stop  { border-color: var(--danger);  color: var(--danger);  background: rgba(217,82,82,.06); }
+    .float-btn-stop:hover:not(:disabled)  { background: rgba(217,82,82,.14); }
+    .float-divider { height: 1px; background: var(--border); margin: 2px 0; }
+</style>
+
+<button id="floatToggle" title="Atalhos Rápidos (⚡)" aria-label="Abrir atalhos rápidos" aria-expanded="false">⚡</button>
+
+<div id="floatPanel" hidden role="dialog" aria-label="Atalhos rápidos">
+    <div id="floatHandle" class="float-header">
+        <span class="float-title">⚡ Atalhos Rápidos</span>
+        <button id="floatClose" class="float-close" aria-label="Fechar painel">×</button>
+    </div>
+    <div class="float-body">
+        <div id="floatStatus" class="float-status">Pronto.</div>
+        <button id="floatScreenshot" class="float-btn">📸 Capturar Tela</button>
+        <div class="float-divider"></div>
+        <button id="floatStartRec" class="float-btn float-btn-start">▶ Iniciar Gravação</button>
+        <button id="floatStopRec"  class="float-btn float-btn-stop" disabled>■ Parar Gravação</button>
+        <div class="float-divider"></div>
+        <form method="post" action="{% url 'gerar_certidao' caso.pk %}" style="margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="float-btn">📄 Gerar Certidão</button>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const startUrl = "{% url 'iniciar_gravacao' caso.pk %}";
+    const finishUrl = "{% url 'finalizar_gravacao' caso.pk %}";
+    const screenshotUrl = "{% url 'criar_captura' caso.pk %}";
+    const csrfToken = "{{ csrf_token }}";
+    const microphoneSelect = document.getElementById('microphoneSelect');
+    const systemAudioRequested = document.getElementById('systemAudioRequested');
+    const startButton = document.getElementById('startRecordingButton');
+    const stopButton = document.getElementById('stopRecordingButton');
+    const manualScreenshotButton = document.getElementById('manualScreenshotButton');
+    const stopPeriodicButton = document.getElementById('stopPeriodicButton');
+    const periodicScreenshotInterval = document.getElementById('periodicScreenshotInterval');
+    const status = document.getElementById('recordingStatus');
+    const screenshotStatus = document.getElementById('screenshotStatus');
+
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let activeStream = null;
+    let screenshotStream = null;
+    let periodicTimer = null;
+    let startedAt = null;
+    let recordingId = null;
+    let startedAtUtc = null;
+    let mimeType = 'video/webm';
+
+    const setStatus = (message) => { status.textContent = message; };
+    const setScreenshotStatus = (message) => { screenshotStatus.textContent = message; };
+    const setRecordingControls = (isRecording, isBusy = false) => {
+        startButton.disabled = isRecording || isBusy;
+        stopButton.disabled = !isRecording || isBusy;
+    };
+    const syncPeriodicControls = () => {
+        stopPeriodicButton.disabled = !periodicTimer;
+    };
+
+    const postForm = async (url, formData) => {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken},
+            body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Falha ao comunicar com o servidor.');
+        return data;
+    };
+
+    const loadMicrophones = async () => {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+            microphoneSelect.innerHTML = '<option value="">API de dispositivos indisponível</option>';
+            return;
+        }
+        try {
+            await navigator.mediaDevices.getUserMedia({audio: true});
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const microphones = devices.filter((device) => device.kind === 'audioinput');
+            microphoneSelect.innerHTML = '<option value="">Sem microfone</option>';
+            microphones.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.textContent = device.label || `Microfone ${index + 1}`;
+                microphoneSelect.appendChild(option);
+            });
+        } catch (error) {
+            microphoneSelect.innerHTML = '<option value="">Microfone indisponível</option>';
+            setStatus(`Microfone não autorizado: ${error.message}`);
+        }
+    };
+
+    const mixedStream = async () => {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: systemAudioRequested.checked,
+        });
+        const tracks = [...displayStream.getVideoTracks()];
+        const auxiliaryStreams = [];
+        const audioContext = new AudioContext();
+        const destination = audioContext.createMediaStreamDestination();
+        let hasAudio = false;
+
+        if (displayStream.getAudioTracks().length) {
+            audioContext.createMediaStreamSource(displayStream).connect(destination);
+            hasAudio = true;
+        }
+
+        if (microphoneSelect.value) {
+            const micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {deviceId: {exact: microphoneSelect.value}},
+            });
+            audioContext.createMediaStreamSource(micStream).connect(destination);
+            auxiliaryStreams.push(micStream);
+            hasAudio = true;
+        }
+
+        if (hasAudio) tracks.push(...destination.stream.getAudioTracks());
+
+        activeStream = new MediaStream(tracks);
+        activeStream._cleanup = () => {
+            displayStream.getTracks().forEach((track) => track.stop());
+            auxiliaryStreams.forEach((stream) => stream.getTracks().forEach((track) => track.stop()));
+            activeStream.getTracks().forEach((track) => track.stop());
+            audioContext.close();
+        };
+        return activeStream;
+    };
+
+    const cleanupScreenshotStream = () => {
+        screenshotStream?.getTracks().forEach((track) => track.stop());
+        screenshotStream = null;
+    };
+
+    const getScreenshotStream = async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording' && activeStream)
+            return {stream: activeStream, shouldCleanup: false};
+
+        if (screenshotStream && screenshotStream.getVideoTracks().some((track) => track.readyState === 'live'))
+            return {stream: screenshotStream, shouldCleanup: false};
+
+        screenshotStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: false});
+        screenshotStream.getVideoTracks().forEach((track) => {
+            track.addEventListener('ended', () => {
+                cleanupScreenshotStream();
+                if (periodicTimer) {
+                    clearInterval(periodicTimer);
+                    periodicTimer = null;
+                    periodicScreenshotInterval.value = '0';
+                    localStorage.setItem('pcdf_periodic_screenshot_interval', '0');
+                    syncPeriodicControls();
+                    setScreenshotStatus('Captura periódica cancelada (compartilhamento encerrado).');
+                }
+            });
+        });
+        return {stream: screenshotStream, shouldCleanup: periodicScreenshotInterval.value === '0'};
+    };
+
+    const streamToPngBlob = async (stream) => {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.srcObject = stream;
+        await video.play();
+        await new Promise((resolve) => {
+            if (video.readyState >= 2) resolve();
+            else video.onloadeddata = resolve;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        video.pause();
+        video.srcObject = null;
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('Falha ao gerar PNG da captura.'));
+            }, 'image/png');
+        });
+    };
+
+    let screenshotInProgress = false;
+
+    const captureScreenshot = async (captureMode = 'manual') => {
+        if (screenshotInProgress) return;
+        screenshotInProgress = true;
+        try {
+            const screenshotId = crypto.randomUUID();
+            const {stream, shouldCleanup} = await getScreenshotStream();
+            const blob = await streamToPngBlob(stream);
+            if (shouldCleanup) cleanupScreenshotStream();
+            const linkedRecordingId = mediaRecorder && mediaRecorder.state === 'recording' ? recordingId : '';
+            const formData = new FormData();
+            formData.append('screenshot_id', screenshotId);
+            formData.append('capture_mode', captureMode);
+            formData.append('linked_recording_id', linkedRecordingId);
+            formData.append('periodic_interval_seconds', periodicScreenshotInterval.value);
+            formData.append('image', blob, `${screenshotId}.png`);
+            const result = await postForm(screenshotUrl, formData);
+            const reportInfo = result.report_pdf_path ? ' Relatório individual gerado.' : '';
+            setScreenshotStatus(`Captura salva. Hash SHA-256: ${result.hash_sha256}.${reportInfo}`);
+        } catch (error) {
+            setScreenshotStatus(`Não foi possível capturar tela: ${error.message}`);
+        } finally {
+            screenshotInProgress = false;
+        }
+    };
+
+    const configurePeriodicScreenshots = () => {
+        if (periodicTimer) { clearInterval(periodicTimer); periodicTimer = null; }
+        const seconds = Number(periodicScreenshotInterval.value);
+        localStorage.setItem('pcdf_periodic_screenshot_interval', String(seconds));
+        if (!seconds) {
+            cleanupScreenshotStream();
+            syncPeriodicControls();
+            setScreenshotStatus('Captura periódica desativada.');
+            return;
+        }
+        setScreenshotStatus(`Captura periódica configurada a cada ${seconds}s.`);
+        periodicTimer = setInterval(() => captureScreenshot('periodica'), seconds * 1000);
+        syncPeriodicControls();
+    };
+
+    startButton.addEventListener('click', async () => {
+        try {
+            setRecordingControls(false, true);
+            recordingId = crypto.randomUUID();
+            recordedChunks = [];
+            const stream = await mixedStream();
+            const formData = new FormData();
+            formData.append('recording_id', recordingId);
+            formData.append('microphone_label', microphoneSelect.selectedOptions[0]?.textContent || '');
+            formData.append('system_audio_requested', systemAudioRequested.checked ? 'true' : 'false');
+            const startResponse = await postForm(startUrl, formData);
+            startedAtUtc = startResponse.started_at_utc;
+            mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+                ? 'video/webm;codecs=vp9,opus' : 'video/webm';
+            mediaRecorder = new MediaRecorder(stream, {mimeType});
+            mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) recordedChunks.push(event.data); };
+            mediaRecorder.onstop = uploadRecording;
+            startedAt = Date.now();
+            mediaRecorder.start(1000);
+            setRecordingControls(true);
+            setStatus('⏺ Gravação em andamento...');
+        } catch (error) {
+            activeStream?._cleanup?.();
+            setStatus(`Não foi possível iniciar: ${error.message}`);
+            setRecordingControls(false);
+        }
+    });
+
+    stopButton.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            setRecordingControls(true, true);
+            setStatus('Finalizando e enviando gravação...');
+        }
+    });
+
+    manualScreenshotButton.addEventListener('click', () => captureScreenshot('manual'));
+    stopPeriodicButton.addEventListener('click', () => { periodicScreenshotInterval.value = '0'; configurePeriodicScreenshots(); });
+    periodicScreenshotInterval.addEventListener('change', configurePeriodicScreenshots);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            captureScreenshot('atalho');
+        }
+    });
+
+    const uploadRecording = async () => {
+        try {
+            activeStream?._cleanup?.();
+            const blob = new Blob(recordedChunks, {type: mimeType});
+            const formData = new FormData();
+            formData.append('recording_id', recordingId);
+            formData.append('started_at_utc', startedAtUtc || '');
+            formData.append('duration_ms', String(Date.now() - startedAt));
+            formData.append('microphone_label', microphoneSelect.selectedOptions[0]?.textContent || '');
+            formData.append('system_audio_requested', systemAudioRequested.checked ? 'true' : 'false');
+            formData.append('mime_type', mimeType);
+            formData.append('video', blob, `${recordingId}.webm`);
+            const result = await postForm(finishUrl, formData);
+            setStatus(`✓ Gravação salva. Hash SHA-256: ${result.hash_sha256}`);
+            cleanupScreenshotStream();
+            window.location.reload();
+        } catch (error) {
+            setStatus(`Não foi possível salvar a gravação: ${error.message}`);
+            setRecordingControls(false);
+        }
+    };
+
+    const serverInterval = '{{ intervalo_screenshot_config }}';
+    const savedInterval = localStorage.getItem('pcdf_periodic_screenshot_interval');
+    periodicScreenshotInterval.value = savedInterval !== null ? savedInterval : serverInterval;
+
+    setRecordingControls(false);
+    syncPeriodicControls();
+    loadMicrophones();
+})();
+</script>
+
+<script>
+// ── Janela Flutuante ──
+(() => {
+    const toggle    = document.getElementById('floatToggle');
+    const panel     = document.getElementById('floatPanel');
+    const handle    = document.getElementById('floatHandle');
+    const closeBtn  = document.getElementById('floatClose');
+    const floatShot = document.getElementById('floatScreenshot');
+    const floatStart= document.getElementById('floatStartRec');
+    const floatStop = document.getElementById('floatStopRec');
+    const floatStat = document.getElementById('floatStatus');
+
+    const mainStart = document.getElementById('startRecordingButton');
+    const mainStop  = document.getElementById('stopRecordingButton');
+    const mainStat  = document.getElementById('recordingStatus');
+
+    const LS_OPEN = 'pcdf_float_open';
+    const LS_POS  = 'pcdf_float_pos';
+
+    // Open/close
+    const setOpen = (open) => {
+        panel.hidden = !open;
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        localStorage.setItem(LS_OPEN, open ? '1' : '0');
+    };
+    if (localStorage.getItem(LS_OPEN) === '1') setOpen(true);
+    toggle.addEventListener('click', () => setOpen(panel.hidden));
+    closeBtn.addEventListener('click', () => setOpen(false));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) setOpen(false); });
+
+    // Dragging
+    let dragging = false, ox = 0, oy = 0;
+    const restorePos = () => {
+        try {
+            const s = JSON.parse(localStorage.getItem(LS_POS));
+            if (!s) return;
+            panel.style.left   = `${s.x}px`;
+            panel.style.top    = `${s.y}px`;
+            panel.style.right  = 'auto';
+            panel.style.bottom = 'auto';
+        } catch (_) {}
+    };
+    restorePos();
+
+    handle.addEventListener('mousedown', (e) => {
+        dragging = true;
+        const r = panel.getBoundingClientRect();
+        ox = e.clientX - r.left;
+        oy = e.clientY - r.top;
+        document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const x = Math.max(0, Math.min(e.clientX - ox, window.innerWidth  - panel.offsetWidth));
+        const y = Math.max(0, Math.min(e.clientY - oy, window.innerHeight - panel.offsetHeight));
+        panel.style.left   = `${x}px`;
+        panel.style.top    = `${y}px`;
+        panel.style.right  = 'auto';
+        panel.style.bottom = 'auto';
+    });
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.style.userSelect = '';
+        const r = panel.getBoundingClientRect();
+        localStorage.setItem(LS_POS, JSON.stringify({x: r.left, y: r.top}));
+    });
+
+    // Wire shortcuts to main controls
+    floatShot.addEventListener('click',  () => document.getElementById('manualScreenshotButton').click());
+    floatStart.addEventListener('click', () => mainStart.click());
+    floatStop.addEventListener('click',  () => mainStop.click());
+
+    // Sync state with main recording controls
+    const sync = () => {
+        const rec = !mainStop.disabled;
+        floatStart.disabled = rec;
+        floatStop.disabled  = !rec;
+        toggle.classList.toggle('rec-active', rec);
+        floatStat.textContent = mainStat.textContent;
+        floatStat.classList.toggle('rec', rec);
+    };
+    new MutationObserver(sync).observe(mainStart,  {attributes: true});
+    new MutationObserver(sync).observe(mainStop,   {attributes: true});
+    new MutationObserver(sync).observe(mainStat,   {childList: true, characterData: true, subtree: true});
+    sync();
+})();
+</script>
+{% endblock %}

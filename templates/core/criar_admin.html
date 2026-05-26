@@ -1,0 +1,33 @@
+{% extends "core/base.html" %}
+
+{% block title %}Configuração Inicial — PCDF{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+    <div class="auth-brand">
+        <span class="app-name">EDIFRAUDS</span>
+        <span class="org-name">Configuração Inicial do Sistema</span>
+        <span class="org-name" style="margin-top:2px;">CORF · PCDF</span>
+    </div>
+    <p class="auth-title">Criar Conta de Administrador</p>
+    <p class="muted" style="margin-bottom:14px;font-size:12px;">
+        Esta é a primeira configuração do sistema. Crie a conta de administrador que
+        terá acesso completo ao EDIFRAUDS.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        {% endfor %}
+        <button type="submit" style="width:100%;justify-content:center;margin-top:20px;">Criar Administrador</button>
+    </form>
+    <div class="auth-footer">
+        <a href="{% url 'login' %}">Voltar ao login</a>
+    </div>
+</div>
+{% endblock %}

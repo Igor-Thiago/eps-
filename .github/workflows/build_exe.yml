@@ -1,0 +1,75 @@
+name: Build EXE (Windows)
+
+# Dispara manualmente (Actions → Run workflow) ou em push de tag vX.Y.Z
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # necessário para criar releases no GitHub
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Instalar dependências desktop
+        run: pip install -r requirements_desktop.txt
+
+      - name: Instalar Playwright Chromium (para bundle offline)
+        run: python -m playwright install chromium
+
+      - name: Coletar arquivos estáticos
+        env:
+          DJANGO_SETTINGS_MODULE: pcdf.settings_desktop
+        # Cria staticfiles/ na raiz do projeto (PyInstaller vai incluir no bundle)
+        run: python manage.py collectstatic --noinput
+
+      - name: Empacotar com PyInstaller
+        env:
+          DJANGO_SETTINGS_MODULE: pcdf.settings_desktop
+        run: python -m PyInstaller edifrauds.spec --noconfirm
+
+      - name: Compactar para distribuição
+        # shutil.make_archive garante zip compatível cross-platform (mesmo que build_exe.py)
+        run: python -c "import shutil; shutil.make_archive('EDIFRAUDS_win64', 'zip', 'dist', 'EDIFRAUDS')"
+
+      - name: Upload artefato (disponível em Actions → Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: EDIFRAUDS_win64
+          path: EDIFRAUDS_win64.zip
+          retention-days: 30
+
+      # Só cria release se o trigger for uma tag vX.Y.Z
+      - name: Criar GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: EDIFRAUDS_win64.zip
+          name: EDIFRAUDS ${{ github.ref_name }}
+          body: |
+            ## EDIFRAUDS — Sistema de Preservação de Vestígios Digitais
+            **CORF / PCDF**
+
+            ### Como instalar
+            1. Baixe `EDIFRAUDS_win64.zip`
+            2. Extraia a pasta em qualquer local (ex: `C:\EDIFRAUDS\`)
+            3. Execute `EDIFRAUDS.exe`
+            4. O sistema abrirá automaticamente no navegador padrão
+
+            ### Dados
+            Banco de dados, casos e logs são salvos em `%USERPROFILE%\EDIFRAUDS\`
+            (sobrevivem a atualizações do sistema)

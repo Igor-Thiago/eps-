@@ -1,0 +1,54 @@
+{% extends "core/base.html" %}
+
+{% block title %}Cadastro de Analista — PCDF{% endblock %}
+
+{% block nav_cadastro %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Novo Analista</h1>
+        <p class="page-subtitle">Registra uma conta de acesso para investigador da CORF/PCDF.</p>
+    </div>
+</div>
+<div class="card" style="max-width:520px;">
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        {% endfor %}
+        <div style="display:flex;gap:10px;margin-top:16px;">
+            <button type="submit">Cadastrar</button>
+            <a class="btn btn-ghost" href="{% url 'casos' %}">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+    <div class="auth-brand">
+        <span class="app-name">EDIFRAUDS</span>
+        <span class="org-name">CORF · PCDF</span>
+    </div>
+    <p class="auth-title">Cadastro de Analista</p>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        {% endfor %}
+        <button type="submit" style="width:100%;justify-content:center;margin-top:20px;">Cadastrar</button>
+    </form>
+    <div class="auth-footer">Já possui cadastro? <a href="{% url 'login' %}">Entrar</a></div>
+</div>
+{% endblock %}

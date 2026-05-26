@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  security:
+    name: Bandit SAST
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Bandit
+        run: python -m pip install --upgrade pip bandit
+
+      - name: Run Bandit
+        run: bandit -r src/ core/ pcdf/ -x core/tests,core/migrations -ll
+
+  dependencies:
+    name: Safety SCA
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Safety
+        run: python -m pip install --upgrade pip "safety<3"
+
+      - name: Check dependencies
+        run: safety check -r requirements.txt
+
+  tests:
+    name: Pytest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: pcdf_ci
+          POSTGRES_USER: pcdf_ci
+          POSTGRES_PASSWORD: pcdf_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pcdf_ci -d pcdf_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: pcdf.settings
+      SECRET_KEY: ci-secret-key
+      DEBUG: "False"
+      DB_NAME: pcdf_ci
+      DB_USER: pcdf_ci
+      DB_PASSWORD: pcdf_ci
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: pytest --cov=core --cov=src --cov-report=term-missing

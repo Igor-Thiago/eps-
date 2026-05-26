@@ -1,0 +1,528 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}EDIFRAUDS — CORF/PCDF{% endblock %}</title>
+    <style>
+        :root {
+            --bg:       #0F0F0F;
+            --surface:  #1A1A1A;
+            --surface2: #222222;
+            --surface3: #2C2C2C;
+            --border:   #383838;
+            --gold:     #C8A951;
+            --gold-lt:  #DEC06A;
+            --gold-dim: rgba(200,169,81,.12);
+            --white:    #F0F0F0;
+            --muted:    #7A7A7A;
+            --danger:   #D95252;
+            --success:  #4BAE50;
+            --info:     #4A8FD4;
+            --sidebar:  220px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            height: 56px;
+            background: var(--surface);
+            border-bottom: 2px solid var(--gold);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 14px;
+            flex-shrink: 0;
+            z-index: 200;
+        }
+
+        .brand-shield {
+            width: 38px;
+            height: 42px;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text .app-name  { font-size:15px; font-weight:700; color:var(--gold); letter-spacing:.4px; }
+        .brand-text .org-name  { font-size:9px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+
+        .topbar-spacer { flex: 1; }
+
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 48px;
+            border: 1px solid var(--gold);
+            border-radius: 14px;
+            padding: 4px;
+            background: rgba(200,169,81,.03);
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 150px;
+            height: 100%;
+            padding: 0 18px;
+            color: var(--white);
+        }
+
+        .user-badge-icon {
+            color: var(--gold-lt);
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .user-badge-copy {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            line-height: 1.05;
+        }
+
+        .user-badge-label {
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .user-badge-value {
+            color: var(--gold-lt);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .btn-logout,
+        button.btn-logout[type="submit"] {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            height: 34px;
+            background: transparent;
+            border: none;
+            color: var(--gold);
+            min-width: 112px;
+            padding: 0 20px;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: border-color .15s, color .15s;
+            margin-top: 0 !important;
+            align-self: center;
+            position: relative;
+        }
+        .btn-logout::before {
+            content: "";
+            position: absolute;
+            left: -5px;
+            top: 7px;
+            bottom: 7px;
+            width: 1px;
+            background: var(--border);
+        }
+        .btn-logout:hover,
+        button.btn-logout[type="submit"]:hover {
+            color: var(--white);
+            background: transparent;
+        }
+        .btn-logout .icon { font-size: 16px; }
+
+        /* ── OUTER WRAPPER ── */
+        .app-layout  { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+        .auth-layout { display: flex; flex: 1; flex-direction: column; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: var(--sidebar);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 20px 10px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section { margin-bottom: 20px; }
+
+        .sidebar-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted);
+            padding: 0 10px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            color: var(--muted);
+            font-size: 13px;
+            transition: all .15s;
+            margin-bottom: 1px;
+        }
+        .sidebar-link:hover { background: var(--surface3); color: var(--white); }
+        .sidebar-link.active { background: var(--gold-dim); color: var(--gold); font-weight: 600; }
+        .sidebar-link .icon { width: 18px; text-align: center; flex-shrink: 0; font-style: normal; }
+
+        .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 8px 10px; }
+
+        /* ── MAIN CONTENT (app) ── */
+        .main-content {
+            flex: 1;
+            padding: 28px 32px;
+            overflow-y: auto;
+            min-width: 0;
+        }
+
+        /* ── AUTH MAIN (unauthenticated) ── */
+        .auth-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        /* ── AUTH CARD ── */
+        .auth-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-top: 3px solid var(--gold);
+            border-radius: 8px;
+            padding: 36px 32px;
+            width: min(440px, 100%);
+        }
+
+        .auth-brand { text-align: center; margin-bottom: 28px; }
+        .auth-brand .app-name  { font-size:20px; font-weight:700; color:var(--gold); letter-spacing:1px; display:block; }
+        .auth-brand .org-name  { font-size:10px; color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-top:4px; display:block; }
+
+        .auth-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .auth-footer { text-align: center; margin-top: 18px; font-size: 12px; color: var(--muted); }
+        .auth-footer a { color: var(--gold); text-decoration: none; }
+        .auth-footer a:hover { text-decoration: underline; }
+
+        /* ── CASE STATUS BAR ── */
+        .case-statusbar {
+            background: var(--surface);
+            border-top: 1px solid var(--gold);
+            padding: 7px 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+        .case-statusbar strong { color: var(--gold); }
+        .case-statusbar .sep   { color: var(--border); }
+        .case-statusbar .spacer { flex: 1; }
+        .case-statusbar a { color: var(--muted); text-decoration: none; font-size: 11px; }
+        .case-statusbar a:hover { color: var(--white); }
+
+        /* ── PAGE HEADER ── */
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+        .page-title    { font-size: 20px; font-weight: 700; color: var(--white); }
+        .page-subtitle { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+        /* ── CARDS ── */
+        .card { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 20px; }
+        .card + .card { margin-top: 16px; }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gold);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: .3px;
+        }
+
+        /* ── BUTTONS ── */
+        .btn, button[type="submit"] {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            transition: all .15s;
+            min-height: 36px;
+            line-height: 1;
+        }
+
+        .btn-primary, button[type="submit"] { background: var(--gold); color: #111; }
+        .btn-primary:hover, button[type="submit"]:hover { background: var(--gold-lt); }
+
+        .btn-secondary { background: var(--surface3); border: 1px solid var(--border); color: var(--white); }
+        .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+        .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: rgba(217,82,82,.1); }
+
+        .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        .btn-ghost:hover { border-color: var(--white); color: var(--white); }
+
+        .btn:disabled,
+        button[type="submit"]:disabled {
+            background: var(--surface3);
+            border-color: var(--border);
+            color: var(--muted);
+            cursor: not-allowed;
+            opacity: .65;
+        }
+
+        .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 28px; }
+
+        button[type="submit"] { margin-top: 16px; }
+
+        /* ── FORMS ── */
+        label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            margin-bottom: 5px;
+            margin-top: 14px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="url"],
+        input[type="email"],
+        input[type="number"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            background: var(--surface3);
+            border: 1px solid var(--border);
+            color: var(--white);
+            padding: 8px 12px;
+            border-radius: 5px;
+            font: inherit;
+            font-size: 13px;
+            min-height: 38px;
+            transition: border-color .15s;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+        select option { background: var(--surface2); color: var(--white); }
+        input[type="file"]     { padding: 6px 10px; cursor: pointer; }
+        input[type="checkbox"] { width: auto; min-height: auto; accent-color: var(--gold); }
+
+        .inline-control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+        .errorlist { list-style: none; color: var(--danger); font-size: 12px; margin-top: 4px; }
+        .help-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+        /* ── MESSAGES ── */
+        .messages { margin-bottom: 18px; display: grid; gap: 8px; }
+        .alert {
+            padding: 10px 14px;
+            border-radius: 5px;
+            font-size: 13px;
+            border-left: 3px solid var(--gold);
+            background: var(--surface2);
+            color: var(--white);
+        }
+        .alert.success { border-left-color: var(--success); }
+        .alert.error   { border-left-color: var(--danger); }
+        .alert.warning { border-left-color: #D4A017; }
+        .alert.info    { border-left-color: var(--info); }
+
+        /* ── TABLES ── */
+        .table-wrap { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { background: var(--surface3); }
+        th {
+            padding: 10px 14px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--gold);
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 11px 14px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--white);
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: var(--surface3); }
+        td a { color: var(--gold); text-decoration: none; }
+        td a:hover { text-decoration: underline; }
+        td code { font-size: 10px; background: var(--surface3); border: 1px solid var(--border); padding: 2px 5px; border-radius: 3px; color: var(--muted); word-break: break-all; }
+
+        /* ── UTILITIES ── */
+        .muted        { color: var(--muted); font-size: 12px; }
+        .text-gold    { color: var(--gold); }
+        .space-top    { margin-top: 20px; }
+        .grid-2       { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .recording-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+        .status-text  { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+        .empty-state  { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+        a { color: var(--gold); }
+        code { background: var(--surface3); border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px; font-size: 11px; color: var(--gold-lt); }
+
+        @media (max-width: 860px) {
+            .sidebar { display: none; }
+            .main-content { padding: 20px 16px; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header class="topbar">
+    <img class="brand-shield" src="{% static 'core/img/brasao_pcdf.png' %}" alt="Brasão da Polícia Civil do Distrito Federal">
+    <div class="brand-text">
+        <span class="app-name">EDIFRAUDS</span>
+        <span class="org-name">CORF &middot; PCDF</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    {% if request.user.is_authenticated %}
+    <div class="user-area">
+        <span class="user-badge">
+            <span class="user-badge-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" fill="currentColor"/>
+                    <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="user-badge-copy">
+                <span class="user-badge-label">Matrícula</span>
+                <span class="user-badge-value">{{ request.user.matricula }}</span>
+            </span>
+        </span>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-logout">
+                <span class="icon">↪</span>
+                Sair
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</header>
+
+{% if request.user.is_authenticated %}
+<!-- ── APP LAYOUT (authenticated) ── -->
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <span class="sidebar-label">Investigação</span>
+            <a href="{% url 'casos' %}" class="sidebar-link {% block nav_casos %}{% endblock %}">
+                <i class="icon">📁</i> Casos
+            </a>
+            <a href="{% url 'novo_caso' %}" class="sidebar-link {% block nav_novo_caso %}{% endblock %}">
+                <i class="icon">➕</i> Novo Caso
+            </a>
+        </div>
+        <hr class="sidebar-divider">
+        <div class="sidebar-section">
+            <span class="sidebar-label">Sistema</span>
+            {% if request.user.is_superuser or request.user.is_admin_pcdf %}
+            <a href="{% url 'cadastro' %}" class="sidebar-link {% block nav_cadastro %}{% endblock %}">
+                <i class="icon">👤</i> Novo Analista
+            </a>
+            {% endif %}
+            <a href="{% url 'configuracao' %}" class="sidebar-link {% block nav_configuracao %}{% endblock %}">
+                <i class="icon">⚙️</i> Configurações
+            </a>
+        </div>
+    </aside>
+    <main class="main-content">
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}<div class="alert {{ message.tags }}">{{ message }}</div>{% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+{% if caso %}
+<div class="case-statusbar">
+    <span>Caso aberto:</span>
+    <strong>{{ caso.nome }}</strong>
+    <span class="sep">·</span>
+    <span>{{ caso.numero_processo|default:"sem nº de processo" }}</span>
+    <span class="spacer"></span>
+    <a href="{% url 'abrir_pasta' caso.pk %}">Abrir pasta ↗</a>
+    <span class="sep">·</span>
+    <a href="{% url 'casos' %}">Todos os casos</a>
+</div>
+{% endif %}
+
+{% else %}
+<!-- ── AUTH LAYOUT (unauthenticated) ── -->
+<div class="auth-layout">
+    <div class="auth-main">
+        {% if messages %}
+        <div class="messages" style="width:min(440px,100%);margin-bottom:14px;">
+            {% for message in messages %}<div class="alert {{ message.tags }}">{{ message }}</div>{% endfor %}
+        </div>
+        {% endif %}
+        {% block auth_content %}{% endblock %}
+    </div>
+</div>
+{% endif %}
+
+</body>
+</html>

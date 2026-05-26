@@ -1,0 +1,45 @@
+{% extends "core/base.html" %}
+
+{% block title %}Novo Caso — EDIFRAUDS/PCDF{% endblock %}
+
+{% block nav_novo_caso %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Novo Caso Forense</h1>
+        <p class="page-subtitle">
+            Ao criar, o sistema gera automaticamente as pastas:
+            <code>sites</code>, <code>gravacoes</code>, <code>capturas</code>,
+            <code>copias_forenses</code> e <code>integridade</code>.
+        </p>
+    </div>
+</div>
+
+<div class="card" style="max-width:560px;">
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% endif %}
+
+        <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+        {{ form.nome }}
+        {% if form.nome.errors %}<ul class="errorlist">{% for e in form.nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+        <label for="{{ form.numero_processo.id_for_label }}">{{ form.numero_processo.label }}</label>
+        {{ form.numero_processo }}
+        {% if form.numero_processo.errors %}<ul class="errorlist">{% for e in form.numero_processo.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+        <label for="{{ form.pasta_base.id_for_label }}">{{ form.pasta_base.label }}</label>
+        {{ form.pasta_base }}
+        <p class="help-text">{{ form.pasta_base.help_text }}</p>
+        {% if form.pasta_base.errors %}<ul class="errorlist">{% for e in form.pasta_base.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+        <div style="display:flex;gap:10px;margin-top:18px;">
+            <button type="submit">Criar Caso</button>
+            <a class="btn btn-ghost" href="{% url 'casos' %}">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "core/base.html" %}
+
+{% block title %}Casos — EDIFRAUDS/PCDF{% endblock %}
+
+{% block nav_casos %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Casos Vinculados</h1>
+        <p class="page-subtitle">Retome uma investigação existente ou inicie um novo caso forense.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'novo_caso' %}">+ Novo Caso</a>
+</div>
+
+{% if casos %}
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Nome do Caso</th>
+                <th>Nº Processo</th>
+                <th>Criado em</th>
+                <th>Último Acesso</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for caso in casos %}
+            <tr>
+                <td>
+                    <a href="{% url 'caso_detalhe' caso.pk %}" style="font-weight:600;">
+                        {{ caso.nome }}
+                    </a>
+                </td>
+                <td>{{ caso.numero_processo|default:"—" }}</td>
+                <td>{{ caso.created_at|date:"d/m/Y H:i" }}</td>
+                <td>{{ caso.last_accessed_at|date:"d/m/Y H:i"|default:"—" }}</td>
+                <td style="text-align:right;">
+                    <a class="btn btn-ghost btn-sm" href="{% url 'caso_detalhe' caso.pk %}">Retomar →</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <p style="font-size:32px;margin-bottom:12px;">📁</p>
+        <p style="color:var(--white);font-weight:600;margin-bottom:6px;">Nenhum caso registrado</p>
+        <p>Crie o primeiro caso para iniciar a coleta de vestígios digitais.</p>
+        <a class="btn btn-primary" href="{% url 'novo_caso' %}" style="margin-top:18px;">+ Criar Primeiro Caso</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

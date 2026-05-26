@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Login — EDIFRAUDS/PCDF{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+    <div class="auth-brand">
+        <img
+            src="{% static 'core/img/brasao_pcdf.png' %}"
+            alt="Brasão da Polícia Civil do Distrito Federal"
+            style="width:72px;height:86px;object-fit:contain;margin-bottom:10px;"
+        >
+        <span class="app-name">EDIFRAUDS</span>
+        <span class="org-name">Coleta e Preservação de Vestígios Digitais</span>
+        <span class="org-name" style="letter-spacing:3px;margin-top:2px;">CORF · PCDF</span>
+    </div>
+
+    <p class="auth-title">Acesso do Analista</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist">
+            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        {% if form.username.errors %}<ul class="errorlist">{% for e in form.username.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        {{ form.password }}
+        {% if form.password.errors %}<ul class="errorlist">{% for e in form.password.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+        <button type="submit" style="width:100%;justify-content:center;margin-top:20px;">Entrar</button>
+    </form>
+
+    <div class="auth-footer" style="margin-top:14px;">
+        Não tem acesso? <a href="{% url 'cadastro' %}">Solicite cadastro</a>
+        {% if setup_needed %}
+        <br><a href="{% url 'criar_admin' %}" style="color:var(--muted);">Configuração inicial do sistema</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

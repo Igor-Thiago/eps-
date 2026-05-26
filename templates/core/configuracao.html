@@ -1,0 +1,224 @@
+{% extends "core/base.html" %}
+
+{% block title %}Configurações — EDIFRAUDS/PCDF{% endblock %}
+
+{% block nav_configuracao %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Configurações</h1>
+        <p class="page-subtitle">Personalize o comportamento do sistema e a identidade visual dos relatórios.</p>
+    </div>
+</div>
+
+<style>
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .tab-btn {
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: color .15s, border-color .15s;
+        min-height: auto;
+        margin-top: 0;
+    }
+    .tab-btn:hover { color: var(--white); }
+    .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+    .preview-box {
+        background: var(--surface3);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 14px 16px;
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 10px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+    }
+    .preview-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; margin-top: 0; }
+    .logo-preview img { max-height: 80px; border: 1px solid var(--border); border-radius: 4px; margin-top: 8px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .field-row { grid-template-columns: 1fr; } }
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 12px; background: var(--surface3); border-radius: 5px; }
+    .toggle-row label { margin: 0; text-transform: none; font-size: 13px; font-weight: 600; color: var(--white); letter-spacing: 0; }
+</style>
+
+<form method="post" enctype="multipart/form-data" id="config-form">
+    {% csrf_token %}
+    <input type="hidden" name="tab" id="active-tab" value="{{ tab }}">
+
+    <!-- Tabs nav -->
+    <div class="tabs">
+        <button type="button" class="tab-btn {% if tab == 'geral' %}active{% endif %}" data-tab="geral" onclick="switchTab('geral')">Geral</button>
+        <button type="button" class="tab-btn {% if tab == 'gravacao' %}active{% endif %}" data-tab="gravacao" onclick="switchTab('gravacao')">Gravação</button>
+        <button type="button" class="tab-btn {% if tab == 'relatorios' %}active{% endif %}" data-tab="relatorios" onclick="switchTab('relatorios')">Relatórios</button>
+    </div>
+
+    {% if form.non_field_errors %}
+    <ul class="errorlist" style="margin-bottom:14px;">
+        {% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- ── Aba Geral ── -->
+    <div class="tab-section {% if tab == 'geral' %}active{% endif %}" id="tab-geral">
+        <div class="card" style="max-width:600px;">
+            <p class="card-title">📂 Pasta Padrão de Salvamento</p>
+            <p class="muted" style="margin-bottom:8px;">
+                Caminho usado ao criar novos casos. Se vazio, o sistema usa a pasta padrão do Django (<code>media/casos/</code>).
+            </p>
+            <label for="{{ form.pasta_padrao.id_for_label }}">{{ form.pasta_padrao.label }}</label>
+            {{ form.pasta_padrao }}
+            {% if form.pasta_padrao.errors %}
+            <ul class="errorlist">{% for e in form.pasta_padrao.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ── Aba Gravação ── -->
+    <div class="tab-section {% if tab == 'gravacao' %}active{% endif %}" id="tab-gravacao">
+        <div class="card" style="max-width:600px;">
+            <p class="card-title">📸 Captura Periódica de Tela</p>
+            <p class="muted" style="margin-bottom:8px;">
+                Intervalo padrão ao abrir um caso. O analista pode alterar durante a sessão.
+            </p>
+            <label for="{{ form.intervalo_screenshot.id_for_label }}">{{ form.intervalo_screenshot.label }}</label>
+            {{ form.intervalo_screenshot }}
+            {% if form.intervalo_screenshot.errors %}
+            <ul class="errorlist">{% for e in form.intervalo_screenshot.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ── Aba Relatórios ── -->
+    <div class="tab-section {% if tab == 'relatorios' %}active{% endif %}" id="tab-relatorios">
+
+        <!-- Logo -->
+        <div class="card" style="max-width:700px;">
+            <p class="card-title">🖼️ Logo Institucional</p>
+            <p class="muted" style="margin-bottom:8px;">Aparece no cabeçalho dos relatórios PDF gerados.</p>
+            {% if config.logo %}
+            <div class="logo-preview">
+                <p class="preview-label">Logo atual</p>
+                <img src="{{ config.logo.url }}" alt="Logo atual">
+            </div>
+            {% endif %}
+            <label for="{{ form.logo.id_for_label }}">{{ form.logo.label }}</label>
+            {{ form.logo }}
+            {% if form.logo.errors %}
+            <ul class="errorlist">{% for e in form.logo.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+
+        <!-- Cabeçalho -->
+        <div class="card space-top" style="max-width:700px;">
+            <p class="card-title">📄 Cabeçalho dos Relatórios</p>
+            <label for="{{ form.cabecalho.id_for_label }}">{{ form.cabecalho.label }}</label>
+            {{ form.cabecalho }}
+            {% if form.cabecalho.errors %}
+            <ul class="errorlist">{% for e in form.cabecalho.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+            <p class="preview-label" style="margin-top:12px;">Prévia</p>
+            <div class="preview-box" id="preview-cabecalho">{{ config.cabecalho }}</div>
+        </div>
+
+        <!-- Assinatura -->
+        <div class="card space-top" style="max-width:700px;">
+            <p class="card-title">✍️ Assinatura do Responsável</p>
+            <p class="muted" style="margin-bottom:8px;">Exibida ao final de cada relatório PDF gerado.</p>
+            <div class="field-row">
+                <div>
+                    <label for="{{ form.assinatura_nome.id_for_label }}">{{ form.assinatura_nome.label }}</label>
+                    {{ form.assinatura_nome }}
+                    {% if form.assinatura_nome.errors %}
+                    <ul class="errorlist">{% for e in form.assinatura_nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.assinatura_cargo.id_for_label }}">{{ form.assinatura_cargo.label }}</label>
+                    {{ form.assinatura_cargo }}
+                    {% if form.assinatura_cargo.errors %}
+                    <ul class="errorlist">{% for e in form.assinatura_cargo.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                </div>
+            </div>
+            <label for="{{ form.assinatura_orgao.id_for_label }}">{{ form.assinatura_orgao.label }}</label>
+            {{ form.assinatura_orgao }}
+            {% if form.assinatura_orgao.errors %}
+            <ul class="errorlist">{% for e in form.assinatura_orgao.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+            <p class="preview-label" style="margin-top:12px;">Prévia</p>
+            <div class="preview-box" id="preview-assinatura">{{ config.assinatura_nome }}
+{{ config.assinatura_cargo }}
+{{ config.assinatura_orgao }}</div>
+        </div>
+
+        <!-- Toggle metadados técnicos -->
+        <div class="card space-top" style="max-width:700px;">
+            <p class="card-title">⚙️ Conteúdo dos Relatórios</p>
+            <div class="toggle-row">
+                {{ form.incluir_info_tecnica }}
+                <label for="{{ form.incluir_info_tecnica.id_for_label }}">
+                    {{ form.incluir_info_tecnica.label }}
+                    <span class="muted" style="font-weight:400;font-size:12px;display:block;">
+                        Inclui WHOIS/RDAP, SSL, DNS e cabeçalhos HTTP nos relatórios de preservação de sites.
+                    </span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão salvar (sempre visível) -->
+    <div style="margin-top:20px;">
+        <button type="submit">Salvar Configurações</button>
+    </div>
+</form>
+
+<script>
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    const section = document.getElementById('tab-' + tabName);
+    const btn = document.querySelector('.tab-btn[data-tab="' + tabName + '"]');
+    if (section) section.classList.add('active');
+    if (btn) btn.classList.add('active');
+    document.getElementById('active-tab').value = tabName;
+}
+
+// Prévia do cabeçalho em tempo real
+const cabecalhoInput = document.getElementById('{{ form.cabecalho.id_for_label }}');
+const previewCabecalho = document.getElementById('preview-cabecalho');
+if (cabecalhoInput && previewCabecalho) {
+    cabecalhoInput.addEventListener('input', () => {
+        previewCabecalho.textContent = cabecalhoInput.value;
+    });
+}
+
+// Prévia da assinatura em tempo real
+const nomeInput  = document.getElementById('{{ form.assinatura_nome.id_for_label }}');
+const cargoInput = document.getElementById('{{ form.assinatura_cargo.id_for_label }}');
+const orgaoInput = document.getElementById('{{ form.assinatura_orgao.id_for_label }}');
+const previewAssinatura = document.getElementById('preview-assinatura');
+
+function updateAssinatura() {
+    if (previewAssinatura) {
+        previewAssinatura.textContent =
+            (nomeInput?.value  || '') + '\n' +
+            (cargoInput?.value || '') + '\n' +
+            (orgaoInput?.value || '');
+    }
+}
+nomeInput?.addEventListener('input', updateAssinatura);
+cargoInput?.addEventListener('input', updateAssinatura);
+orgaoInput?.addEventListener('input', updateAssinatura);
+</script>
+{% endblock %}

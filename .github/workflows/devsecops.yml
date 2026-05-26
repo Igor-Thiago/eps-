@@ -1,0 +1,32 @@
+name: DevSecOps-PCDF
+
+# Este workflow é mantido por compatibilidade histórica.
+# As verificações de segurança equivalentes já rodam em ci.yml (jobs security + dependencies).
+# Aqui mantemos apenas como referência de que o pipeline DevSecOps existe separadamente.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install audit tools
+        run: python -m pip install --upgrade pip bandit "safety<3"
+
+      - name: SAST - Bandit
+        run: bandit -r src/ core/ pcdf/ -x core/tests,core/migrations -ll
+
+      - name: SCA - Safety
+        run: safety check -r requirements.txt
